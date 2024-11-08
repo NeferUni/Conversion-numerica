@@ -129,19 +129,162 @@ imprimir_binario:
 
 ; Función: decimal_a_hexadecimal
 decimal_a_hexadecimal:
-    ; Aquí se agregará el código para la conversión de decimal a hexadecimal
-    jmp main                      ; Regresar al menú principal
+    lea dx, prompt_numero_decimal ; Mensaje para pedir número
+    mov ah, 09h                   ; Función para mostrar cadena
+    int 21h                       ; Interrupción 21h para mostrar mensaje
+
+    mov ah, 01h                   ; Función para leer un carácter del teclado
+    int 21h                       ; Leer número ingresado por el usuario
+    sub al, '0'                   ; Convertir de ASCII a valor numérico
+    mov bl, al                    ; Guardar el número en BL para la conversión
+
+    ; Inicializar variables para la conversión
+    mov cx, 0                     ; Contador de dígitos (índice)
+    lea si, binario_buffer        ; Apuntar al buffer de hexadecimal
+
+convertir_a_hexadecimal:
+    mov al, bl                    ; Cargar el número en AL
+    mov ah, 0                     ; Limpiar AH antes de la división
+    mov dl, 16                    ; Divisor (base hexadecimal)
+    div dl                        ; Dividir AL entre 16, cociente en AL y residuo en AH
+
+    ; Convertir el residuo a ASCII
+    cmp ah, 10                    ; Verificar si el residuo es mayor o igual a 10
+    jl  almacenar_hex             ; Si es menor, almacenar directamente
+    add ah, 'A' - 10              ; Convertir 10-15 a 'A'-'F'
+    jmp almacenar
+
+almacenar_hex:
+    add ah, '0'                   ; Convertir el residuo en ASCII ('0'-'9')
+
+almacenar:
+    mov [si], ah                  ; Guardar el dígito en el buffer
+    inc si                        ; Avanzar al siguiente espacio en el buffer
+    inc cx                        ; Incrementar el contador de dígitos
+    mov bl, al                    ; Actualizar BL con el cociente para el siguiente ciclo
+
+    cmp bl, 0                     ; Revisar si el cociente es 0
+    jne convertir_a_hexadecimal    ; Si no es 0, seguir dividiendo
+
+    ; Mostrar el resultado en orden inverso
+    dec si                        ; Retroceder una posición para imprimir el último dígito guardado
+imprimir_hexadecimal:
+    mov dl, [si]                  ; Cargar el dígito almacenado en el buffer
+    mov ah, 02h                   ; Función para mostrar un carácter
+    int 21h                       ; Mostrar el dígito
+    dec si                        ; Mover al dígito anterior en el buffer
+    loop imprimir_hexadecimal      ; Repetir hasta que todos los dígitos se impriman
+
+    jmp main                      ; Regresar al menú principal                  ; Regresar al menú principal
 
 ; Función: decimal_a_octal
+; Función: decimal_a_octal
 decimal_a_octal:
-    ; Aquí se agregará el código para la conversión de decimal a octal
-    jmp main                      ; Regresar al menú principal
+    lea dx, prompt_numero_decimal ; Mensaje para pedir número
+    mov ah, 09h                   ; Función para mostrar cadena
+    int 21h                       ; Interrupción 21h para mostrar mensaje
 
+    mov ah, 01h                   ; Función para leer un carácter del teclado
+    int 21h                       ; Leer número ingresado por el usuario
+    sub al, '0'                   ; Convertir de ASCII a valor numérico
+    mov bl, al                    ; Guardar el número en BL para la conversión
+
+    ; Inicializar variables para la conversión
+    mov cx, 0                     ; Contador de dígitos (índice)
+    lea si, binario_buffer        ; Apuntar al buffer de octal
+
+convertir_a_octal:
+    mov al, bl                    ; Cargar el número en AL
+    mov ah, 0                     ; Limpiar AH antes de la división
+    mov dl, 8                     ; Divisor (base octal)
+    div dl                        ; Dividir AL entre 8, cociente en AL y residuo en AH
+
+    add ah, '0'                   ; Convertir el residuo en ASCII ('0'-'7')
+    mov [si], ah                  ; Guardar el dígito en el buffer
+    inc si                        ; Avanzar al siguiente espacio en el buffer
+    inc cx                        ; Incrementar el contador de dígitos
+    mov bl, al                    ; Actualizar BL con el cociente para el siguiente ciclo
+
+    cmp bl, 0                     ; Revisar si el cociente es 0
+    jne convertir_a_octal         ; Si no es 0, seguir dividiendo
+
+    ; Mostrar el resultado en orden inverso
+    dec si                        ; Retroceder una posición para imprimir el último dígito guardado
+imprimir_octal:
+    mov dl, [si]                  ; Cargar el dígito almacenado en el buffer
+    mov ah, 02h                   ; Función para mostrar un carácter
+    int 21h                       ; Mostrar el dígito
+    dec si                        ; Mover al dígito anterior en el buffer
+    loop imprimir_octal           ; Repetir hasta que todos los dígitos se impriman
+
+    jmp main                      ; Regresar al menú principal
 ; Función: binario_a_decimal
 binario_a_decimal:
-    ; Aquí se agregará el código para la conversión de binario a decimal
-    jmp main                      ; Regresar al menú principal
+    lea dx, prompt_numero_decimal ; Mensaje para pedir el número binario
+    mov ah, 09h                   ; Función para mostrar cadena
+    int 21h                       ; Interrupción 21h para mostrar mensaje
 
+    ; Inicializar variables
+    xor di, di                    ; Limpiar DI (acumulador decimal)
+    mov cx, 0                     ; Inicializar contador de dígitos
+    lea si, binario_buffer        ; Apuntar al buffer donde se almacenará el binario
+
+leer_binario:
+    mov ah, 01h                   ; Función para leer un carácter del teclado
+    int 21h                       ; Leer número ingresado por el usuario
+    cmp al, 13                    ; Comparar si se presionó Enter (código ASCII 13)
+    je fin_leer_binario           ; Si es Enter, ir a fin
+
+    cmp al, '0'                   ; Comparar si el carácter es '0'
+    je agregar_cero               ; Si es '0', ir a agregar_cero
+    cmp al, '1'                   ; Comparar si el carácter es '1'
+    je agregar_uno                ; Si es '1', ir a agregar_uno
+
+    ; Si se ingresa un carácter diferente, salir del bucle
+    jmp fin_leer_binario
+
+agregar_cero:
+    ; Si es '0', solo incrementar el contador
+    inc cx
+    jmp leer_binario
+
+agregar_uno:
+    ; Si es '1', calcular el valor decimal
+    shl di, 1                     ; Multiplicar el acumulador por 2
+    inc di                        ; Sumar 1 al acumulador
+    inc cx                        ; Incrementar el contador
+    jmp leer_binario
+
+fin_leer_binario:
+    ; Mostrar el resultado en decimal
+    ; Convertir el valor en DI a ASCII y mostrarlo
+    mov ax, di                    ; Mover el valor decimal a AX
+    call imprimir_decimal          ; Llamar a la función para imprimir el número decimal
+
+    jmp main                      ; Regresar al menú principal            ; Regresar al menú principal
+
+; Función para imprimir el número decimal en AX
+imprimir_decimal:
+    ; Convertir el número en AX a una cadena y mostrarla
+    xor cx, cx                    ; Limpiar CX (contador de dígitos)
+    mov bx, 10                    ; Divisor para conversión a decimal
+
+convertir_decimal:
+    xor dx, dx                    ; Limpiar DX antes de la división
+    div bx                        ; Dividir AX entre 10
+    push dx                       ; Almacenar el residuo en la pila
+    inc cx                        ; Incrementar el contador de dígitos
+    test ax, ax                   ; Comprobar si AX es 0
+    jnz convertir_decimal          ; Si no es 0, seguir dividiendo
+
+imprimir_resultado_decimal:
+    pop dx                        ; Recuperar el dígito de la pila
+    add dl, '0'                   ; Convertir el dígito a ASCII
+    mov ah, 02h                   ; Función para mostrar un carácter
+    int 21h                       ; Mostrar el dígito
+    loop imprimir_resultado_decimal ; Repetir hasta que se muestren todos los dígitos
+
+    ret                           ; Regresar de la función
 ; Función: hexadecimal_a_decimal
 hexadecimal_a_decimal:
     ; Aquí se agregará el código para la conversión de hexadecimal a decimal
