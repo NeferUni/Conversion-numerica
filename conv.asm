@@ -12,6 +12,8 @@
     option7 db '7. Salir', 13, 10, '$'                    ; Opción para salir del programa
     prompt db 'Seleccione una opcion (1-7): $'            ; Mensaje para pedir entrada del usuario
     invalid db 'Opcion no valida, intente nuevamente', 13, 10, '$' ; Mensaje de error para opción inválida
+    prompt_numero_decimal db 'Ingrese un numero decimal (0-9): $' ; Mensaje para pedir número
+    binario_buffer db 8 dup(?)    ; Espacio para almacenar el resultado en binario
 
 .code                    ; Sección de código donde empieza el programa
 main proc                ; Etiqueta de inicio del procedimiento principal
@@ -84,33 +86,71 @@ main proc                ; Etiqueta de inicio del procedimiento principal
 
 ; Función: decimal_a_binario
 decimal_a_binario:
-    ; Aquí se agregará el código para la conversión de decimal a binario
-    jmp salir            ; Volver a la salida del programa después de la conversión
+    ; Solicitar número decimal al usuario
+    lea dx, prompt_numero_decimal ; Mensaje para pedir número
+    mov ah, 09h                   ; Función para mostrar cadena
+    int 21h                       ; Interrupción 21h para mostrar mensaje
+
+    ; Leer el número decimal ingresado por el usuario
+    mov ah, 01h                   ; Función para leer un carácter del teclado
+    int 21h                       ; Leer número ingresado por el usuario
+    sub al, '0'                   ; Convertir de ASCII a valor numérico
+    mov bl, al                    ; Guardar el número en BL para la conversión
+
+    ; Inicializar variables para la conversión
+    mov cx, 0                     ; Contador de bits (índice)
+    lea si, binario_buffer        ; Apuntar al buffer de binario donde se guardarán los restos
+
+convertir_a_binario:
+    mov al, bl                    ; Cargar el número en AL para dividir
+    mov ah, 0                     ; Limpiar AH antes de la división
+    mov dl, 2                     ; Divisor (base binaria)
+    div dl                        ; Dividir AL entre 2, cociente en AL y residuo en AH
+
+    add ah, '0'                   ; Convertir el residuo en ASCII ('0' o '1')
+    mov [si], ah                  ; Guardar el bit en binario_buffer
+    inc si                        ; Avanzar al siguiente espacio en el buffer
+    inc cx                        ; Incrementar el contador de bits
+    mov bl, al                    ; Actualizar BL con el cociente para el siguiente ciclo
+
+    cmp bl, 0                     ; Revisar si el cociente es 0
+    jne convertir_a_binario       ; Si no es 0, seguir dividiendo
+
+    ; Mostrar el resultado en orden inverso (último bit a primero)
+    dec si                        ; Retroceder una posición para imprimir el último bit guardado
+imprimir_binario:
+    mov dl, [si]                  ; Cargar el bit almacenado en binario_buffer
+    mov ah, 02h                   ; Función para mostrar un carácter
+    int 21h                       ; Mostrar el bit
+    dec si                        ; Mover al bit anterior en el buffer
+    loop imprimir_binario         ; Repetir hasta que todos los bits se impriman
+
+    jmp main                      ; Regresar al menú principal
 
 ; Función: decimal_a_hexadecimal
 decimal_a_hexadecimal:
     ; Aquí se agregará el código para la conversión de decimal a hexadecimal
-    jmp salir            ; Volver a la salida del programa después de la conversión
+    jmp main                      ; Regresar al menú principal
 
 ; Función: decimal_a_octal
 decimal_a_octal:
     ; Aquí se agregará el código para la conversión de decimal a octal
-    jmp salir            ; Volver a la salida del programa después de la conversión
+    jmp main                      ; Regresar al menú principal
 
 ; Función: binario_a_decimal
 binario_a_decimal:
     ; Aquí se agregará el código para la conversión de binario a decimal
-    jmp salir            ; Volver a la salida del programa después de la conversión
+    jmp main                      ; Regresar al menú principal
 
 ; Función: hexadecimal_a_decimal
 hexadecimal_a_decimal:
     ; Aquí se agregará el código para la conversión de hexadecimal a decimal
-    jmp salir            ; Volver a la salida del programa después de la conversión
+    jmp main                      ; Regresar al menú principal
 
 ; Función: octal_a_decimal
 octal_a_decimal:
     ; Aquí se agregará el código para la conversión de octal a decimal
-    jmp salir            ; Volver a la salida del programa después de la conversión
+    jmp main                      ; Regresar al menú principal
 
 ; Función: opcion_invalida
 opcion_invalida:
