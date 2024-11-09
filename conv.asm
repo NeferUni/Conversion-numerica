@@ -25,6 +25,10 @@ resultado_decimal dw 0
 error_msg db 10,13,7,'ERROR: Numero binario invalido$'  
 potencia dw 1            
 
+;decimal hexadecimal variables---------------------------------
+numero_hex db 16 dup('$')    ; Buffer para el resultado hexadecimal
+temp_decimal dw 0            ; Variable temporal para cálculos
+
 .CODE
 MAIN PROC
     MOV AX, @DATA
@@ -251,17 +255,101 @@ DECIMAL_HEXADECIMAL:
     LEA DX, Ingrese
     INT 21h
     
-    MOV SI, 0
+    ; Inicializar variables
+    MOV temp_decimal, 0
+    
+    ; Leer y convertir número decimal
 LEER_DEC_HEX:
     MOV AH, 01h
     INT 21h
-    CMP AL, 13
-    JE FIN_DEC_HEX
-    MOV numero[SI], AL
-    INC SI
+    
+    CMP AL, 13              ; Comparar con Enter
+    JE CONVERTIR_DEC_HEX    ; Cambiado
+    
+    ; Validar dígito (0-9)
+    CMP AL, '0'
+    JB LEER_DEC_HEX        ; Si es menor que '0', ignorar
+    CMP AL, '9'
+    JA LEER_DEC_HEX        ; Si es mayor que '9', ignorar
+    
+    ; Convertir ASCII a número
+    SUB AL, 30h
+    MOV BL, AL             ; Guardar dígito en BL
+    
+    ; Multiplicar número actual por 10 y sumar nuevo dígito
+    MOV AX, temp_decimal
+    MOV CX, 10
+    MUL CX                  ; DX:AX = AX * 10
+    
+    ; Verificar overflow
+    CMP DX, 0
+    JNE LEER_DEC_HEX      ; Si hay overflow, ignorar dígito
+    
+    ; Sumar nuevo dígito
+    MOV BH, 0
+    ADD AX, BX
+    JC LEER_DEC_HEX       ; Si hay carry, ignorar dígito
+    
+    MOV temp_decimal, AX
     JMP LEER_DEC_HEX
-FIN_DEC_HEX:
-    MOV numero[SI], '$'
+
+CONVERTIR_DEC_HEX:          ; Cambiado de CONVERTIR_A_HEX
+    ; Mostrar mensaje de resultado
+    MOV AH, 09h
+    LEA DX, MResultado
+    INT 21h
+    
+    ; Preparar para conversión
+    MOV AX, temp_decimal
+    MOV CX, 0              ; Contador de dígitos
+
+PROCESO_DEC_HEX:            ; Cambiado de PROCESO_HEX
+    CMP AX, 0
+    JE MOSTRAR_DEC_HEX      ; Cambiado
+    
+    MOV DX, 0
+    MOV BX, 16
+    DIV BX                 ; AX = cociente, DX = residuo
+    
+    ; Convertir residuo a carácter hexadecimal
+    CMP DX, 9
+    JA LETRA_DEC_HEX       ; Cambiado
+    ADD DX, '0'           ; Si es 0-9, convertir a ASCII
+    JMP GUARDAR_DIGITO_HEX  ; Cambiado
+
+LETRA_DEC_HEX:              ; Cambiado
+    SUB DX, 10            ; Convertir 10-15 a 0-5
+    ADD DX, 'A'           ; Convertir a A-F
+
+GUARDAR_DIGITO_HEX:         ; Cambiado
+    PUSH DX               ; Guardar dígito en stack
+    INC CX               ; Incrementar contador
+    
+    CMP AX, 0
+    JNE PROCESO_DEC_HEX     ; Cambiado
+
+MOSTRAR_DEC_HEX:            ; Cambiado
+    ; Si el número era 0, mostrar 0
+    CMP CX, 0
+    JNE MOSTRAR_DIGITOS_DEC_HEX  ; Cambiado
+    MOV AH, 02h
+    MOV DL, '0'
+    INT 21h
+    JMP FIN_DEC_HEX         ; Cambiado
+
+MOSTRAR_DIGITOS_DEC_HEX:    ; Cambiado
+    POP DX               ; Obtener dígito del stack
+    MOV AH, 02h
+    MOV DL, DL          ; Mover el carácter a DL
+    INT 21h
+    LOOP MOSTRAR_DIGITOS_DEC_HEX  ; Cambiado
+
+FIN_DEC_HEX:                ; Cambiado de FIN_HEX
+    ; Mostrar salto de línea
+    MOV AH, 09h
+    LEA DX, Salto
+    INT 21h
+    
     JMP MENU_PRINCIPAL
 
 HEXADECIMAL_DECIMAL:
