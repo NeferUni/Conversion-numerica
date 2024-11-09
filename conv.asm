@@ -1,5 +1,3 @@
-TITLE CONVERSOR
-
 .MODEL SMALL
 .STACK 100h
 
@@ -14,14 +12,18 @@ Elija db 10,13,7,"ELIJA SU OPCION : ","$"
 Ingrese db 10,13,7,"INGRESE EL NUMERO : ","$"
 MResultado db 10,13,7,"RESULTADO : ","$"
 Salto db 10,13,7,"$"
-numero db 16 dup('$')  ; Aumenté el tamaño del buffer para números más largos
+numero db 16 dup('$')  
 
 ;decimal binario variables-------------------------------------
+numero_decimal dw 0   
+binario db 16 dup(0) 
+longitud_bin db 0    
+temp dw 0           
 
-numero_decimal dw 0   ; Para almacenar el número decimal convertido
-binario db 16 dup(0) ; Para almacenar el resultado binario
-longitud_bin db 0    ; Para almacenar la longitud del número binario
-
+;binario decimal variables------------------------------------
+resultado_decimal dw 0    
+error_msg db 10,13,7,'ERROR: Numero binario invalido$'  
+potencia dw 1            
 
 .CODE
 MAIN PROC
@@ -29,27 +31,22 @@ MAIN PROC
     MOV DS, AX
 
 MENU_PRINCIPAL:
-    ; Mostrar mensaje de introducción
     MOV AH, 09h
     LEA DX, Intro
     INT 21h
 
-    ; Mostrar menú de opciones
     MOV AH, 09h
     LEA DX, Menu
     INT 21h
 
-    ; Solicitar opción
     MOV AH, 09h
     LEA DX, Elija
     INT 21h
 
-    ; Leer opción ingresada
     MOV AH, 01h
     INT 21h
     MOV opcion, AL
 
-    ; Seleccionar la función
     CMP AL, '1'
     JE DECIMAL_BINARIO
     CMP AL, '2'
@@ -68,84 +65,92 @@ MENU_PRINCIPAL:
     JMP MENU_PRINCIPAL
 
 DECIMAL_BINARIO:
-    ; Mostrar mensaje para ingresar número
     MOV AH, 09h
     LEA DX, Ingrese
     INT 21h
     
-    ; Leer número decimal y convertirlo
-    MOV SI, 0
-    MOV numero_decimal, 0    ; Inicializar el número decimal
+    MOV numero_decimal, 0
+    MOV longitud_bin, 0
     
 LEER_DEC:
     MOV AH, 01h
     INT 21h
-    CMP AL, 13              ; Comparar con Enter
+    
+    CMP AL, 13
     JE CONVERTIR_A_BIN
     
-    ; Convertir ASCII a número
-    SUB AL, 30h             ; Restar 30h para convertir de ASCII a número
-    MOV BL, AL              ; Guardar el dígito en BL
+    CMP AL, '0'
+    JB LEER_DEC
+    CMP AL, '9'
+    JA LEER_DEC
     
-    ; Multiplicar número_decimal actual por 10
+    SUB AL, 30h
+    MOV BL, AL
+    
     MOV AX, numero_decimal
     MOV CX, 10
-    MUL CX                  ; DX:AX = AX * CX
+    MUL CX
+    MOV temp, DX
     
-    ; Agregar el nuevo dígito
-    ADD AL, BL
+    CMP DX, 0
+    JNE LEER_DEC
+    
+    MOV BH, 0
+    ADD AX, BX
+    JC LEER_DEC
+    
     MOV numero_decimal, AX
-    
     JMP LEER_DEC
 
 CONVERTIR_A_BIN:
-    ; Preparar registros para la conversión
-    MOV AX, numero_decimal  ; Número a convertir
-    MOV SI, 0              ; Índice para binario
-    MOV longitud_bin, 0    ; Inicializar longitud
-
+    CMP numero_decimal, 0
+    JE MOSTRAR_CERO
+    
+    MOV CX, 0
+    MOV AX, numero_decimal
+    
 PROCESO_BINARIO:
-    CMP AX, 0              ; Verificar si el número es 0
-    JE MOSTRAR_BINARIO
+    CMP AX, 0
+    JE FIN_CONVERSION
     
-    MOV DX, 0              ; Limpiar DX para división
-    MOV CX, 2              ; Divisor (2 para binario)
-    DIV CX                 ; Dividir AX por 2, cociente en AX, residuo en DX
+    MOV DX, 0
+    MOV BX, 2
+    DIV BX
     
-    ; Guardar el residuo (0 o 1) en el arreglo
-    ADD DL, 30h            ; Convertir a ASCII
-    MOV binario[SI], DL    ; Guardar dígito
-    INC SI
-    INC longitud_bin
+    ADD DL, 30h
+    PUSH DX
+    INC CX
     
     JMP PROCESO_BINARIO
 
-MOSTRAR_BINARIO:
-    ; Mostrar mensaje de resultado
+FIN_CONVERSION:
+    MOV longitud_bin, CL
+
+    MOV AH, 09h
+    LEA DX, MResultado
+    INT 21h
+
+MOSTRAR_RESULTADO:
+    CMP CX, 0
+    JE FIN_MOSTRAR
+    
+    POP DX
+    MOV AH, 02h
+    INT 21h
+    
+    DEC CX
+    JMP MOSTRAR_RESULTADO
+
+MOSTRAR_CERO:
     MOV AH, 09h
     LEA DX, MResultado
     INT 21h
     
-    ; Preparar para mostrar el binario
-    MOV CL, longitud_bin
-    MOV CH, 0              ; Limpiar CH para usar CX
-    MOV SI, CX             ; SI apunta al último dígito
-    DEC SI                 ; Ajustar para índice base 0
-
-MOSTRAR_DIGITOS:
-    CMP SI, 0              ; Verificar si quedan dígitos
-    JL FIN_MOSTRAR
-    
-    ; Mostrar un dígito
-    MOV DL, binario[SI]
     MOV AH, 02h
+    MOV DL, '0'
     INT 21h
-    
-    DEC SI                 ; Mover al siguiente dígito
-    JMP MOSTRAR_DIGITOS
 
 FIN_MOSTRAR:
-    ; Mostrar salto de línea
     MOV AH, 09h
     LEA DX, Salto
     INT 21h
@@ -153,37 +158,104 @@ FIN_MOSTRAR:
     JMP MENU_PRINCIPAL
 
 BINARIO_DECIMAL:
-    ; Mostrar mensaje para ingresar número
     MOV AH, 09h
     LEA DX, Ingrese
     INT 21h
     
-    ; Leer número binario
     MOV SI, 0
-LEER_BIN:
+    MOV resultado_decimal, 0
+    
+LEER_BIN_DEC:
     MOV AH, 01h
     INT 21h
-    CMP AL, 13  ; Comparar con Enter
-    JE FIN_BIN
+    
+    CMP AL, 13
+    JE CONVERTIR_BIN_DEC
+    
+    CMP AL, '0'
+    JB NUMERO_INVALIDO_BIN
+    CMP AL, '1'
+    JA NUMERO_INVALIDO_BIN
+    
     MOV numero[SI], AL
     INC SI
-    JMP LEER_BIN
-FIN_BIN:
+    JMP LEER_BIN_DEC
+
+NUMERO_INVALIDO_BIN:
+    MOV AH, 09h
+    LEA DX, error_msg
+    INT 21h
+    JMP MENU_PRINCIPAL
+
+CONVERTIR_BIN_DEC:
     MOV numero[SI], '$'
+    DEC SI
+    
+    MOV potencia, 1
+    MOV resultado_decimal, 0
+
+PROCESO_CONVERSION_BIN:
+    CMP SI, 0
+    JL FIN_CONVERSION_BIN
+    
+    MOV AL, numero[SI]
+    SUB AL, '0'
+    
+    CMP AL, 1
+    JNE SIGUIENTE_DIGITO_BIN
+    
+    MOV AX, potencia
+    ADD resultado_decimal, AX
+    
+SIGUIENTE_DIGITO_BIN:
+    MOV AX, potencia
+    MOV BX, 2
+    MUL BX
+    MOV potencia, AX
+    
+    DEC SI
+    JMP PROCESO_CONVERSION_BIN
+
+FIN_CONVERSION_BIN:
+    MOV AH, 09h
+    LEA DX, MResultado
+    INT 21h
+    
+    MOV AX, resultado_decimal
+    MOV BX, 10
+    MOV CX, 0
+    
+CONVERTIR_A_ASCII_BIN:
+    MOV DX, 0
+    DIV BX
+    PUSH DX
+    INC CX
+    CMP AX, 0
+    JNE CONVERTIR_A_ASCII_BIN
+    
+MOSTRAR_DIGITOS_BIN:
+    POP DX
+    ADD DL, '0'
+    MOV AH, 02h
+    INT 21h
+    LOOP MOSTRAR_DIGITOS_BIN
+    
+    MOV AH, 09h
+    LEA DX, Salto
+    INT 21h
+    
     JMP MENU_PRINCIPAL
 
 DECIMAL_HEXADECIMAL:
-    ; Mostrar mensaje para ingresar número
     MOV AH, 09h
     LEA DX, Ingrese
     INT 21h
     
-    ; Leer número decimal
     MOV SI, 0
 LEER_DEC_HEX:
     MOV AH, 01h
     INT 21h
-    CMP AL, 13  ; Comparar con Enter
+    CMP AL, 13
     JE FIN_DEC_HEX
     MOV numero[SI], AL
     INC SI
@@ -193,17 +265,15 @@ FIN_DEC_HEX:
     JMP MENU_PRINCIPAL
 
 HEXADECIMAL_DECIMAL:
-    ; Mostrar mensaje para ingresar número
     MOV AH, 09h
     LEA DX, Ingrese
     INT 21h
     
-    ; Leer número hexadecimal
     MOV SI, 0
 LEER_HEX:
     MOV AH, 01h
     INT 21h
-    CMP AL, 13  ; Comparar con Enter
+    CMP AL, 13
     JE FIN_HEX
     MOV numero[SI], AL
     INC SI
@@ -213,17 +283,15 @@ FIN_HEX:
     JMP MENU_PRINCIPAL
 
 BINARIO_HEXADECIMAL:
-    ; Mostrar mensaje para ingresar número
     MOV AH, 09h
     LEA DX, Ingrese
     INT 21h
     
-    ; Leer número binario
     MOV SI, 0
 LEER_BIN_HEX:
     MOV AH, 01h
     INT 21h
-    CMP AL, 13  ; Comparar con Enter
+    CMP AL, 13
     JE FIN_BIN_HEX
     MOV numero[SI], AL
     INC SI
@@ -233,17 +301,15 @@ FIN_BIN_HEX:
     JMP MENU_PRINCIPAL
 
 HEXADECIMAL_BINARIO:
-    ; Mostrar mensaje para ingresar número
     MOV AH, 09h
     LEA DX, Ingrese
     INT 21h
     
-    ; Leer número hexadecimal
     MOV SI, 0
 LEER_HEX_BIN:
     MOV AH, 01h
     INT 21h
-    CMP AL, 13  ; Comparar con Enter
+    CMP AL, 13
     JE FIN_HEX_BIN
     MOV numero[SI], AL
     INC SI
