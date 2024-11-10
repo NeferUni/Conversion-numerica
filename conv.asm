@@ -29,6 +29,22 @@ potencia dw 1
 numero_hex db 16 dup('$')    ; Buffer para el resultado hexadecimal
 temp_decimal dw 0            ; Variable temporal para cálculos
 
+;hexadecimal decimal variables----------------------------------
+hex_error_msg db 10,13,7,'ERROR: Numero hexadecimal invalido$'
+hex_resultado dw 0     ; Para almacenar el resultado de la conversión
+hex_temp dw 0         ; Variable temporal para cálculos
+hex_multiplicador dw 1 ; Para almacenar la potencia de 16
+
+;binario hexadecimal variables-----------------------------------
+bin_hex_temp dw 0      ; Variable temporal para cálculos
+bin_hex_msg db 10,13,7,'ERROR: Numero binario invalido$'
+
+;hexadecimal binario variables-----------------------------------
+hex_bin_error db 10,13,7,'ERROR: Numero hexadecimal invalido$'
+hex_bin_tabla db '0000','0001','0010','0011','0100','0101','0110','0111'
+              db '1000','1001','1010','1011','1100','1101','1110','1111'
+temp_hex db 0
+
 .CODE
 MAIN PROC
     MOV AX, @DATA
@@ -357,17 +373,118 @@ HEXADECIMAL_DECIMAL:
     LEA DX, Ingrese
     INT 21h
     
+    ; Inicializar variables
     MOV SI, 0
+    MOV hex_resultado, 0
+    
 LEER_HEX:
     MOV AH, 01h
     INT 21h
-    CMP AL, 13
-    JE FIN_HEX
-    MOV numero[SI], AL
+    
+    CMP AL, 13          ; Comparar con Enter
+    JE PROCESAR_HEX
+    
+    ; Validar el carácter hexadecimal
+    CMP AL, '0'
+    JB HEX_INVALIDO     ; Si es menor que '0'
+    CMP AL, '9'
+    JBE ES_NUMERO       ; Si está entre '0' y '9'
+    
+    ; Convertir a mayúsculas si es letra minúscula
+    CMP AL, 'a'
+    JB VERIFICAR_MAYUSCULA
+    CMP AL, 'f'
+    JA HEX_INVALIDO
+    SUB AL, 32          ; Convertir a mayúscula
+    JMP ES_LETRA
+    
+VERIFICAR_MAYUSCULA:
+    CMP AL, 'A'
+    JB HEX_INVALIDO
+    CMP AL, 'F'
+    JA HEX_INVALIDO
+    
+ES_LETRA:
+    SUB AL, 'A'         ; Convertir letra a valor (A=10, B=11, etc.)
+    ADD AL, 10
+    JMP GUARDAR_DIGITO
+    
+ES_NUMERO:
+    SUB AL, '0'         ; Convertir ASCII a valor numérico
+    
+GUARDAR_DIGITO:
+    MOV numero[SI], AL  ; Guardar el valor convertido
     INC SI
     JMP LEER_HEX
-FIN_HEX:
-    MOV numero[SI], '$'
+
+HEX_INVALIDO:
+    MOV AH, 09h
+    LEA DX, hex_error_msg
+    INT 21h
+    JMP MENU_PRINCIPAL
+
+PROCESAR_HEX:
+    MOV numero[SI], '$'  ; Marcar fin de cadena
+    DEC SI              ; Ajustar SI al último dígito
+    
+    ; Inicializar variables para la conversión
+    MOV hex_multiplicador, 1
+    MOV hex_resultado, 0
+    
+CONVERTIR_HEX:
+    CMP SI, 0
+    JL MOSTRAR_RESULTADO_HEX  ; Si terminamos de procesar todos los dígitos
+    
+    ; Obtener el valor del dígito actual
+    MOV AL, numero[SI]
+    MOV AH, 0           ; Limpiar AH para la multiplicación
+    
+    ; Multiplicar por el multiplicador actual
+    MUL hex_multiplicador
+    
+    ; Sumar al resultado
+    ADD hex_resultado, AX
+    
+    ; Multiplicar el multiplicador por 16
+    MOV AX, hex_multiplicador
+    MOV BX, 16
+    MUL BX
+    MOV hex_multiplicador, AX
+    
+    DEC SI
+    JMP CONVERTIR_HEX
+
+MOSTRAR_RESULTADO_HEX:
+    ; Mostrar mensaje "RESULTADO: "
+    MOV AH, 09h
+    LEA DX, MResultado
+    INT 21h
+    
+    ; Convertir el resultado a ASCII y mostrarlo
+    MOV AX, hex_resultado
+    MOV BX, 10
+    MOV CX, 0          ; Contador de dígitos
+    
+CONVERTIR_A_ASCII:
+    MOV DX, 0
+    DIV BX            ; Dividir por 10
+    PUSH DX           ; Guardar el residuo
+    INC CX            ; Incrementar contador
+    CMP AX, 0
+    JNE CONVERTIR_A_ASCII
+    
+MOSTRAR_DIGITOS:
+    POP DX            ; Obtener dígito
+    ADD DL, '0'       ; Convertir a ASCII
+    MOV AH, 02h       ; Función para mostrar carácter
+    INT 21h
+    LOOP MOSTRAR_DIGITOS
+    
+    ; Mostrar salto de línea
+    MOV AH, 09h
+    LEA DX, Salto
+    INT 21h
+    
     JMP MENU_PRINCIPAL
 
 BINARIO_HEXADECIMAL:
@@ -375,19 +492,125 @@ BINARIO_HEXADECIMAL:
     LEA DX, Ingrese
     INT 21h
     
+    ; Inicializar variables
     MOV SI, 0
+    MOV bin_hex_temp, 0
+    
 LEER_BIN_HEX:
     MOV AH, 01h
     INT 21h
-    CMP AL, 13
-    JE FIN_BIN_HEX
+    
+    CMP AL, 13          ; Comparar con Enter
+    JE PROCESAR_BIN_HEX
+    
+    ; Validar que sea 0 o 1
+    CMP AL, '0'
+    JB BIN_HEX_ERROR
+    CMP AL, '1'
+    JA BIN_HEX_ERROR
+    
+    ; Guardar el dígito
     MOV numero[SI], AL
     INC SI
     JMP LEER_BIN_HEX
-FIN_BIN_HEX:
-    MOV numero[SI], '$'
+
+BIN_HEX_ERROR:
+    MOV AH, 09h
+    LEA DX, bin_hex_msg    ; Cambiado para usar el nuevo nombre
+    INT 21h
     JMP MENU_PRINCIPAL
 
+PROCESAR_BIN_HEX:
+    MOV numero[SI], '$'  ; Marcar fin de cadena
+    DEC SI              ; Ajustar SI al último dígito
+    
+    ; Inicializar variables para la conversión a decimal
+    MOV bin_hex_temp, 0
+    MOV CX, 1           ; Potencia de 2 inicial
+
+CONVERTIR_A_DECIMAL:
+    CMP SI, -1          ; Cambiado para procesar correctamente todos los dígitos
+    JE CONVERTIR_A_HEX  ; Si ya procesamos todos los dígitos
+    
+    ; Obtener el dígito actual
+    MOV AL, numero[SI]
+    SUB AL, '0'         ; Convertir de ASCII a valor
+    
+    ; Si el dígito es 1, sumar la potencia actual
+    CMP AL, 1
+    JNE SIGUIENTE_BINARIO
+    
+    MOV AX, CX
+    ADD bin_hex_temp, AX
+    
+SIGUIENTE_BINARIO:
+    ; Multiplicar la potencia por 2
+    MOV AX, CX
+    SHL AX, 1           ; Multiplicar por 2 usando shift left
+    MOV CX, AX
+    
+    DEC SI
+    JMP CONVERTIR_A_DECIMAL
+
+CONVERTIR_A_HEX:
+    ; Mostrar mensaje "RESULTADO: "
+    MOV AH, 09h
+    LEA DX, MResultado
+    INT 21h
+    
+    ; Convertir el decimal a hexadecimal
+    MOV AX, bin_hex_temp
+    MOV CX, 0          ; Contador de dígitos hexadecimales
+    
+PROCESO_HEX:
+    CMP AX, 0
+    JE MOSTRAR_HEX
+    
+    MOV DX, 0
+    MOV BX, 16
+    DIV BX             ; Dividir por 16
+    
+    ; Convertir el residuo a carácter hexadecimal
+    CMP DL, 9
+    JA CONVERTIR_LETRA
+    ADD DL, '0'        ; Si es 0-9
+    JMP GUARDAR_HEX
+    
+CONVERTIR_LETRA:
+    SUB DL, 10
+    ADD DL, 'A'        ; Si es A-F
+    
+GUARDAR_HEX:
+    PUSH DX            ; Guardar en la pila
+    INC CX
+    JMP PROCESO_HEX
+
+MOSTRAR_HEX:
+    ; Si el resultado es 0, mostrar 0
+    CMP CX, 0
+    JNE MOSTRAR_DIGITOS_HEX
+    MOV AH, 02h
+    MOV DL, '0'
+    INT 21h
+    JMP FIN_BIN_HEX_CONV
+
+MOSTRAR_DIGITOS_HEX:
+    POP DX
+    MOV AH, 02h
+    INT 21h
+    LOOP MOSTRAR_DIGITOS_HEX
+
+FIN_BIN_HEX_CONV:
+    ; Mostrar salto de línea
+    MOV AH, 09h
+    LEA DX, Salto
+    INT 21h
+    
+    JMP MENU_PRINCIPAL
+
+
+
+; Modificar la función HEXADECIMAL_BINARIO
 HEXADECIMAL_BINARIO:
     MOV AH, 09h
     LEA DX, Ingrese
@@ -397,13 +620,97 @@ HEXADECIMAL_BINARIO:
 LEER_HEX_BIN:
     MOV AH, 01h
     INT 21h
-    CMP AL, 13
-    JE FIN_HEX_BIN
-    MOV numero[SI], AL
+    
+    CMP AL, 13          ; Comparar con Enter
+    JE PROCESAR_HEX_BIN
+    
+    ; Validar y convertir dígito hexadecimal
+    CMP AL, '0'
+    JB HEX_BIN_INVALIDO
+    CMP AL, '9'
+    JBE ES_NUM_HEX_BIN
+    
+    ; Convertir a mayúsculas si es letra minúscula
+    CMP AL, 'a'
+    JB VERIFICAR_MAY_HEX_BIN
+    CMP AL, 'f'
+    JA HEX_BIN_INVALIDO
+    SUB AL, 32          ; Convertir a mayúscula
+    JMP ES_LETRA_HEX_BIN
+    
+VERIFICAR_MAY_HEX_BIN:
+    CMP AL, 'A'
+    JB HEX_BIN_INVALIDO
+    CMP AL, 'F'
+    JA HEX_BIN_INVALIDO
+    
+ES_LETRA_HEX_BIN:
+    SUB AL, 'A'         ; Convertir letra a valor (A=10, B=11, etc.)
+    ADD AL, 10
+    JMP GUARDAR_HEX_BIN
+    
+ES_NUM_HEX_BIN:
+    SUB AL, '0'         ; Convertir ASCII a valor numérico
+    
+GUARDAR_HEX_BIN:
+    MOV numero[SI], AL  ; Guardar el valor convertido
     INC SI
     JMP LEER_HEX_BIN
+
+HEX_BIN_INVALIDO:
+    MOV AH, 09h
+    LEA DX, hex_bin_error
+    INT 21h
+    JMP MENU_PRINCIPAL
+
+PROCESAR_HEX_BIN:
+    MOV numero[SI], '$'  ; Marcar fin de cadena
+    
+    ; Mostrar mensaje "RESULTADO: "
+    MOV AH, 09h
+    LEA DX, MResultado
+    INT 21h
+    
+    MOV CX, SI          ; Guardar cantidad de dígitos
+    MOV SI, 0           ; Reiniciar SI para procesar desde el inicio
+
+CONVERTIR_HEX_BIN:
+    CMP SI, CX
+    JE FIN_HEX_BIN
+    
+    ; Obtener valor del dígito actual
+    MOV AL, numero[SI]
+    MOV temp_hex, AL
+    
+    ; Calcular desplazamiento en la tabla
+    MOV BX, 4           ; Cada patrón binario ocupa 4 bytes
+    MUL BL             ; AX = AL * 4
+    MOV BX, AX         ; BX = desplazamiento en la tabla
+    
+    ; Mostrar los 4 bits correspondientes
+    MOV DI, 0          ; Contador para los 4 bits
+MOSTRAR_BITS:
+    MOV AL, hex_bin_tabla[BX + DI]
+    MOV DL, AL
+    MOV AH, 02h
+    INT 21h
+    
+    INC DI
+    CMP DI, 4
+    JNE MOSTRAR_BITS
+    
+    ; Agregar espacio entre grupos de 4 bits
+    MOV DL, ' '
+    MOV AH, 02h
+    INT 21h
+    
+    INC SI
+    JMP CONVERTIR_HEX_BIN
+
 FIN_HEX_BIN:
-    MOV numero[SI], '$'
+    MOV AH, 09h
+    LEA DX, Salto
+    INT 21h
     JMP MENU_PRINCIPAL
 
 EXIT:
