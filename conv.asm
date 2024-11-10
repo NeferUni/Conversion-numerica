@@ -2,48 +2,48 @@
 .STACK 100h
 
 .DATA
-Intro db 10,13,7,"CONVERSOR BASICO",10,13,7,"------------------",10,13,7,"$"
-Menu db 10,13,7,"1.DECIMAL->BINARIO",10,13,7,"2.BINARIO->DECIMAL",10,13,7,
-        "3.DECIMAL->HEXADECIMAL",10,13,7,"4.HEXADECIMAL->DECIMAL",10,13,7,
-        "5.BINARIO->HEXADECIMAL",10,13,7,"6.HEXADECIMAL->BINARIO",10,13,7,
-        "7.SALIR",10,13,7,"$"
-opcion db ?
-Elija db 10,13,7,"ELIJA SU OPCION : ","$"
-Ingrese db 10,13,7,"INGRESE EL NUMERO : ","$"
-MResultado db 10,13,7,"RESULTADO : ","$"
-Salto db 10,13,7,"$"
-numero db 16 dup('$')  
+Intro DB 10,13,7,"CONVERSOR BASICO",10,13,7,"------------------",10,13,7,"$"
+Menu DB 10,13,7,"1.DECIMAL->BINARIO",10,13,7,"2.BINARIO->DECIMAL",10,13,7
+     DB "3.DECIMAL->HEXADECIMAL",10,13,7,"4.HEXADECIMAL->DECIMAL",10,13,7
+     DB "5.BINARIO->HEXADECIMAL",10,13,7,"6.HEXADECIMAL->BINARIO",10,13,7
+     DB "7.SALIR",10,13,7,"$"
+opcion DB ?
+Elija DB 10,13,7,"ELIJA SU OPCION : ","$"
+Ingrese DB 10,13,7,"INGRESE EL NUMERO : ","$"
+MResultado DB 10,13,7,"RESULTADO : ","$"
+Salto DB 10,13,7,"$"
+numero DB 16 DUP('$')  
 
-;decimal binario variables-------------------------------------
-numero_decimal dw 0   
-binario db 16 dup(0) 
-longitud_bin db 0    
-temp dw 0           
+;decimal binario variables
+numero_decimal DW 0   
+binario DB 16 DUP(0) 
+longitud_bin DB 0    
+temp DW 0           
 
-;binario decimal variables------------------------------------
-resultado_decimal dw 0    
-error_msg db 10,13,7,'ERROR: Numero binario invalido$'  
-potencia dw 1            
+;binario decimal variables
+resultado_decimal DW 0    
+error_msg DB 10,13,7,'ERROR: Numero binario invalido$'  
+potencia DW 1            
 
-;decimal hexadecimal variables---------------------------------
-numero_hex db 16 dup('$')    ; Buffer para el resultado hexadecimal
-temp_decimal dw 0            ; Variable temporal para cálculos
+;decimal hexadecimal variables
+numero_hex DB 16 DUP('$')    
+temp_decimal DW 0            
 
-;hexadecimal decimal variables----------------------------------
-hex_error_msg db 10,13,7,'ERROR: Numero hexadecimal invalido$'
-hex_resultado dw 0     ; Para almacenar el resultado de la conversión
-hex_temp dw 0         ; Variable temporal para cálculos
-hex_multiplicador dw 1 ; Para almacenar la potencia de 16
+;hexadecimal decimal variables
+hex_error_msg DB 10,13,7,'ERROR: Numero hexadecimal invalido$'
+hex_resultado DW 0     
+hex_temp DW 0         
+hex_multiplicador DW 1 
 
-;binario hexadecimal variables-----------------------------------
-bin_hex_temp dw 0      ; Variable temporal para cálculos
-bin_hex_msg db 10,13,7,'ERROR: Numero binario invalido$'
+;binario hexadecimal variables
+bin_hex_temp DW 0      
+bin_hex_msg DB 10,13,7,'ERROR: Numero binario invalido$'
 
-;hexadecimal binario variables-----------------------------------
-hex_bin_error db 10,13,7,'ERROR: Numero hexadecimal invalido$'
-hex_bin_tabla db '0000','0001','0010','0011','0100','0101','0110','0111'
-              db '1000','1001','1010','1011','1100','1101','1110','1111'
-temp_hex db 0
+;hexadecimal binario variables
+hex_bin_error DB 10,13,7,'ERROR: Numero hexadecimal invalido$'
+hex_bin_tabla DB '0000','0001','0010','0011','0100','0101','0110','0111'
+              DB '1000','1001','1010','1011','1100','1101','1110','1111'
+temp_hex DB 0
 
 .CODE
 MAIN PROC
@@ -67,22 +67,42 @@ MENU_PRINCIPAL:
     INT 21h
     MOV opcion, AL
 
-    CMP AL, '1'
-    JE DECIMAL_BINARIO
-    CMP AL, '2'
-    JE BINARIO_DECIMAL
-    CMP AL, '3'
-    JE DECIMAL_HEXADECIMAL
-    CMP AL, '4'
-    JE HEXADECIMAL_DECIMAL
-    CMP AL, '5'
-    JE BINARIO_HEXADECIMAL
-    CMP AL, '6'
-    JE HEXADECIMAL_BINARIO
-    CMP AL, '7'
-    JE EXIT
+CMP AL, '1'
+JNE NOT_DECIMAL_BINARIO
+JMP DECIMAL_BINARIO
 
-    JMP MENU_PRINCIPAL
+NOT_DECIMAL_BINARIO:
+CMP AL, '2'
+JNE NOT_BINARIO_DECIMAL
+JMP BINARIO_DECIMAL
+
+NOT_BINARIO_DECIMAL:
+CMP AL, '3'
+JNE NOT_DECIMAL_HEXADECIMAL
+JMP DECIMAL_HEXADECIMAL
+
+NOT_DECIMAL_HEXADECIMAL:
+CMP AL, '4'
+JNE NOT_HEXADECIMAL_DECIMAL
+JMP HEXADECIMAL_DECIMAL
+
+NOT_HEXADECIMAL_DECIMAL:
+CMP AL, '5'
+JNE NOT_BINARIO_HEXADECIMAL
+JMP BINARIO_HEXADECIMAL
+
+NOT_BINARIO_HEXADECIMAL:
+CMP AL, '6'
+JNE NOT_HEXADECIMAL_BINARIO
+JMP HEXADECIMAL_BINARIO
+
+NOT_HEXADECIMAL_BINARIO:
+CMP AL, '7'
+JNE NOT_EXIT
+JMP EXIT
+
+NOT_EXIT:
+JMP MENU_PRINCIPAL
 
 DECIMAL_BINARIO:
     MOV AH, 09h
